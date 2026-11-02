@@ -1,0 +1,10 @@
+{
+  "name": "Damas Market",
+  "image": "mcr.microsoft.com/devcontainers/base:ubuntu",
+  "postCreateCommand": "sudo apt-get update && sudo apt-get install -y php-cli php-sqlite3 php-gd php-zip php-mbstring php-xml",
+  "postStartCommand": "bash tools/codespace-start.sh",
+  "forwardPorts": [8000],
+  "portsAttributes": {
+    "8000": { "label": "Damas Market (Website + /admin/)", "onAutoForward": "notify" }
+  }
+}

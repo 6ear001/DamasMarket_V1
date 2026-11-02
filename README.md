@@ -44,6 +44,12 @@ Einschalten: Repo → **Settings → Pages → Source: „Deploy from a branch�
 Neu erzeugen nach Änderungen am Design: `python3 tools/build_preview.py`.
 Die echte Seite mit Admin-Bereich braucht PHP-Hosting (siehe oben).
 
+## Admin in der Cloud ausprobieren (GitHub Codespaces)
+
+Zum **Ausprobieren** des Control Panels ohne eigenes Hosting: Repo → grüner Button **Code** → Reiter **Codespaces** → **Create codespace on `claude/eloquent-hopper-5uttws`**.
+Nach der Installation (ca. 1–2 Min.) zeigt das Terminal den **Installationscode**. Im Reiter **Ports** die Adresse von Port 8000 öffnen und `/admin/` anhängen.
+Die Daten liegen nur in diesem Codespace (wird er gelöscht, sind sie weg) und die Seite ist nur für dich erreichbar – für Besucher braucht es PHP-Hosting.
+
 ## Backup / Umzug
 
 Konto & Backup → Datenbank und Bilder herunterladen. Zum Wiederherstellen `damas.sqlite` nach `app/data/` und den Ordner `uploads/` zurückkopieren.
