@@ -37,6 +37,13 @@ GitHub Pages reicht **nicht**, weil die Seite PHP braucht.
 
 > Nach der Einrichtung: Wer `app/data/` (Datenbank) hat, hat alle Daten. Backups nicht öffentlich ablegen.
 
+## Online-Vorschau auf GitHub Pages (nur zum Zeigen)
+
+Der Ordner `docs/` enthält eine **statische Vorschau** der öffentlichen Seiten mit Beispieldaten (kein Admin, Suche/Filter-Formulare ohne Funktion).
+Einschalten: Repo → **Settings → Pages → Source: „Deploy from a branch“ → Branch wählen → Ordner `/docs` → Save**.
+Neu erzeugen nach Änderungen am Design: `python3 tools/build_preview.py`.
+Die echte Seite mit Admin-Bereich braucht PHP-Hosting (siehe oben).
+
 ## Backup / Umzug
 
 Konto & Backup → Datenbank und Bilder herunterladen. Zum Wiederherstellen `damas.sqlite` nach `app/data/` und den Ordner `uploads/` zurückkopieren.
