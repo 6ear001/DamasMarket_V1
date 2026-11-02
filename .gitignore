@@ -1,0 +1,8 @@
+app/data/*
+!app/data/.gitkeep
+!app/data/.htaccess
+!app/data/index.php
+public/uploads/*
+!public/uploads/.gitkeep
+!public/uploads/.htaccess
+!public/uploads/index.php
