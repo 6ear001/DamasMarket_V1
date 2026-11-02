@@ -69,6 +69,17 @@ Zum **Ausprobieren** des Control Panels ohne eigenes Hosting: Repo → grüner B
 Nach der Installation (ca. 1–2 Min.) zeigt das Terminal den **Installationscode**. Im Reiter **Ports** die Adresse von Port 8000 öffnen und `/admin/` anhängen.
 Die Daten liegen nur in diesem Codespace (wird er gelöscht, sind sie weg) und die Seite ist nur für dich erreichbar – für Besucher braucht es PHP-Hosting.
 
+### Produkte importieren und Bilder suchen – in Codespaces (Terminal)
+
+Im Terminal des Codespace (unten), im Projektordner:
+
+```bash
+php tools/import_csv.php import/produkte.csv
+php tools/fetch_images.php
+```
+
+Der erste Befehl importiert die Produktliste (ein zweiter Aufruf legt nichts doppelt an), der zweite sucht die Bilder und zeigt dabei den Fortschritt (ca. 7–10 Minuten). Bricht er ab, einfach noch einmal starten – er macht dort weiter, wo er aufgehört hat. Mit `php tools/fetch_images.php --retry` werden auch Produkte ohne Treffer erneut gesucht.
+
 ## Backup / Umzug
 
 Konto & Backup → Datenbank und Bilder herunterladen. Zum Wiederherstellen `damas.sqlite` nach `app/data/` und den Ordner `uploads/` zurückkopieren.
