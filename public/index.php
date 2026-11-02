@@ -50,7 +50,7 @@ site_head('', 'start');
 <section class="section wrap">
   <div class="section-head"><h2>Unser Sortiment</h2></div>
   <div class="tiles">
-    <?php foreach (GROUPS as $g): ?>
+    <?php foreach (GROUPS as $g): if (!($counts[$g] ?? 0) && array_sum($counts)) continue; /* leere Bereiche ausblenden */ ?>
       <a class="tile" href="<?= e(u('produkte.php?bereich=' . rawurlencode($g))) ?>">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><?= $icons[$g] ?></svg>
         <span class="tile-name"><?= e($g) ?></span>

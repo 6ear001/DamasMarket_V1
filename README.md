@@ -19,7 +19,26 @@ Design in den Logo-Farben (Waldgrün, Gold, Hellgrün, Creme). Schrift Barlow wi
 | Kategorien | Anlegen, umbenennen, sortieren, verstecken |
 | Seiten | Impressum, Datenschutz, Über uns und eigene Seiten (einfache Formatierung) |
 | Einstellungen | Name/Slogan, Banner-Hinweis, Startseiten-Texte & Titelbild, Adresse/Telefon/WhatsApp/Social, **Öffnungszeiten**, **Farben & Logo**, Prospekt-PDF, Google-Beschreibung |
+| Produktbilder | **Automatische Bildsuche per Barcode** (Open Food Facts), Fortschrittsanzeige, Liste „ohne Treffer“ zum Selbst-Hochladen |
 | Konto & Backup | Benutzername/Passwort ändern, Datenbank- und Bilder-Backup herunterladen |
+
+## Produktliste aus Excel übernehmen
+
+`import/produkte.csv` enthält die 413 Produkte aus der Excel-Liste (Kategorien, Preise, Mengen, Barcodes), erzeugt mit:
+
+```bash
+python3 tools/xlsx_to_csv.py produkte.xlsx import/produkte.csv
+```
+
+Dabei werden nur die deutschen Namen genutzt (die Spalten „Name EN/AR“ enthielten falsch kopierte Namen), Kassen-Platzhalter („Angebot 3x5€“, „Getränk“, „Nonfood“) ausgelassen, Mengen aus dem Namen in die Spalte „Einheit“ verschoben, Tippfehler korrigiert (Liste `TYPOS` im Skript) und Kategorien per Stichwort vergeben (Liste `FOOD_RULES`).
+**Import:** Admin → Produkte → „Excel / CSV: Import & Export“ → Datei wählen. Ein zweiter Import legt nichts doppelt an.
+
+## Produktbilder
+
+Admin → **Produktbilder** → „Suche starten“. Für jeden Barcode wird bei [Open Food Facts](https://world.openfoodfacts.org) das Verpackungsfoto gesucht, geprüft, verkleinert und gespeichert (ca. 1 Sek. pro Produkt). Der Server braucht dafür Internetzugang (normales Hosting oder Codespaces: ja). Alternativ per Kommandozeile: `php tools/fetch_images.php`.
+* Die Bilder stehen unter **CC BY-SA 4.0**; die Namensnennung erscheint automatisch im Seitenfuß.
+* Nicht jede (v. a. arabische/türkische) Marke ist dort vorhanden – Produkte ohne Treffer bekommen ein eigenes Foto über „Produkt bearbeiten“.
+* Barcodes, die mit „2“ beginnen, sind interne Waagen-/Kassencodes und werden nicht gesucht.
 
 ## Installation auf deiner Domain
 
@@ -63,7 +82,7 @@ DAMAS_DATA_DIR=/tmp/damas-data php -S localhost:8000 -t public
 `http://localhost:8000` (Website) und `http://localhost:8000/admin/` (Admin; Code steht in `/tmp/damas-data/setup-code.txt`).
 
 ```bash
-php tests/run.php   # Tests der Logik (Preise, Angebote, Öffnungszeiten, Markdown, Sicherheit …)
+php tests/run.php   # Tests der Logik (Preise, Angebote, Öffnungszeiten, Import, Bildsuche, Sicherheit …)
 ```
 
 ## Sicherheit (eingebaut)

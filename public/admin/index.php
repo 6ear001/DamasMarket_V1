@@ -35,7 +35,7 @@ admin_head('Übersicht', 'dashboard');
 <div class="cards4">
   <a class="stat" href="produkte.php"><b><?= $visible ?></b><span>sichtbare Produkte</span><small>von <?= $products ?> gesamt</small></a>
   <a class="stat" href="angebote.php"><b><?= $running ?></b><span>laufende Angebote</span><small><?= $ending ? "$ending enden in 2 Tagen" : 'alles im grünen Bereich' ?></small></a>
-  <a class="stat<?= $noImage ? ' warn' : '' ?>" href="produkte.php?filter=ohne-bild"><b><?= $noImage ?></b><span>Produkte ohne Bild</span><small>Bilder verkaufen besser</small></a>
+  <a class="stat<?= $noImage ? ' warn' : '' ?>" href="bilder.php"><b><?= $noImage ?></b><span>Produkte ohne Bild</span><small>automatisch suchen →</small></a>
   <a class="stat<?= $expired ? ' warn' : '' ?>" href="angebote.php?filter=abgelaufen"><b><?= $expired ?></b><span>abgelaufene Angebote</span><small>zum Aufräumen</small></a>
 </div>
 

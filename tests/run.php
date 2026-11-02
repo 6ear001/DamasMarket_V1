@@ -3,8 +3,6 @@
 declare(strict_types=1);
 define('APP_DIR', dirname(__DIR__) . '/app');
 define('PUBLIC_DIR', dirname(__DIR__) . '/public');
-define('BASE_URL', '');
-define('IS_HTTPS', false);
 $tmp = sys_get_temp_dir() . '/damas-test-' . bin2hex(random_bytes(4));
 putenv('DAMAS_DATA_DIR=' . $tmp);
 require APP_DIR . '/bootstrap.php';
@@ -52,7 +50,8 @@ check('Sonntag', open_status(new DateTimeImmutable('2026-11-08 12:00'))['text'],
 
 // Datenbank, Angebote
 $pdo = db();
-check('Kategorien vorbelegt', count(categories()) >= 12, true);
+check('Kategorien vorbelegt', count(categories()) >= 20, true);
+check('Spalten ergänzt (Barcode, Bildquelle)', count(array_intersect(['barcode', 'image_credit', 'image_tried'], array_column($pdo->query('PRAGMA table_info(products)')->fetchAll(), 'name'))), 3);
 check('Pflichtseiten vorhanden', page_row('impressum') !== null && page_row('datenschutz') !== null, true);
 check('keine Angebote am Anfang', active_offers(), []);
 demo_load();
@@ -72,6 +71,37 @@ check('Einstellung speichern', setting('shop_name'), 'Test Markt');
 check('Einstellung Standardwert', setting('color_accent'), '#63c94a');
 check('Passwort zu kurz', password_problem('abc1') !== null, true);
 check('Passwort ok', password_problem('Sicher12345x'), null);
+
+// CSV-Import (Windows-1252 wie bei deutschem Excel, Zeilenumbruch in Beschreibung, Dublette, Bereich)
+$csv = "Name;Name (Arabisch/Türkisch);Kategorie;Einheit;Preis;Herkunft;Beschreibung;Sichtbar;Barcode;Bereich\r\n"
+     . "Süßer Tee;;Neue Kategorie;500 g;2,50;;\"Zeile 1\nZeile 2\";ja;4000000000011;Getränke\r\n"
+     . "Zweites;;Neue Kategorie;1 kg;1.234,50;;;nein;;Lebensmittel\r\n"
+     . "Süßer Tee;;Neue Kategorie;500 g;3,00;;;ja;4000000000011;Getränke\r\n\r\n";
+check('Import: neu/aktualisiert/übersprungen', import_products_csv(mb_convert_encoding($csv, 'Windows-1252', 'UTF-8')), [2, 1, 0]);
+$row = $pdo->query("SELECT p.*, c.group_name g FROM products p JOIN categories c ON c.id = p.category_id WHERE p.barcode = '4000000000011'")->fetch();
+check('Import: Umlaute aus Windows-1252', $row['name'], 'Süßer Tee');
+check('Import: Preis aktualisiert', (int)$row['price_cents'], 300);
+check('Import: neue Kategorie im richtigen Bereich', $row['g'], 'Getränke');
+check('Import: Preis mit Tausenderpunkt', (int)$pdo->query("SELECT price_cents FROM products WHERE name = 'Zweites'")->fetchColumn(), 123450);
+check('Import: unsichtbar', (int)$pdo->query("SELECT visible FROM products WHERE name = 'Zweites'")->fetchColumn(), 0);
+check('Import: zweiter Lauf ohne Doppelte', import_products_csv($csv), [0, 3, 0]);
+$pdo->exec("DELETE FROM products WHERE name IN ('Süßer Tee', 'Zweites')");
+
+// Barcodes / Bildsuche
+check('Barcode EAN-13 gültig', barcode_searchable('4260193516047'), true);
+check('Barcode EAN-8 gültig', barcode_searchable('40170725'), true);
+check('Barcode intern (2…) nicht suchen', barcode_searchable('2609800000001'), false);
+check('Barcode intern 12-stellig', barcode_searchable('260730123936'), false);
+check('Barcode zu kurz', barcode_searchable('12345'), false);
+check('Barcode mit Buchstaben', barcode_searchable('42601935160AB'), false);
+check('UPC-12 → auch EAN-13 versuchen', barcode_variants('548810059202'), ['548810059202', '0548810059202']);
+check('EAN-13 nur eine Variante', barcode_variants('4260193516047'), ['4260193516047']);
+check('Host: Open Food Facts erlaubt', off_host_ok('https://images.openfoodfacts.org/images/products/1.jpg'), true);
+check('Host: fremder Server verboten', off_host_ok('https://evil.example.com/x.jpg'), false);
+check('Host: Lookalike verboten', off_host_ok('https://openfoodfacts.org.evil.com/x.jpg'), false);
+check('Host: http verboten', off_host_ok('http://images.openfoodfacts.org/x.jpg'), false);
+check('Host: interne Adresse verboten', off_host_ok('https://169.254.169.254/latest'), false);
+check('Quelle: ohne Bilder keine Namensnennung', images_need_credit(), false);
 
 // aufräumen
 array_map('unlink', glob($tmp . '/*.*') ?: []);

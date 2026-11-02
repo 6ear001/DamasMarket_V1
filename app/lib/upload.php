@@ -17,15 +17,23 @@ function handle_image_upload(string $field, string $subdir, int $maxW = 1400, bo
     if ($f['size'] > 8 * 1024 * 1024) throw new RuntimeException('Das Bild ist zu groß (max. 8 MB).');
     if (!is_uploaded_file($f['tmp_name']) && PHP_SAPI !== 'cli') throw new RuntimeException('Ungültiger Upload.');
 
-    $mime = (new finfo(FILEINFO_MIME_TYPE))->file($f['tmp_name']);
+    return process_image_file($f['tmp_name'], $subdir, $maxW, $keepAlpha, $thumb);
+}
+
+/**
+ * Prüft und verarbeitet eine lokale Bilddatei (gemeinsam für Upload und automatische Bildsuche).
+ * @throws RuntimeException
+ */
+function process_image_file(string $tmp, string $subdir, int $maxW = 1400, bool $keepAlpha = false, bool $thumb = true): string {
+    $mime = (new finfo(FILEINFO_MIME_TYPE))->file($tmp);
     if (!in_array($mime, ['image/jpeg', 'image/png', 'image/webp', 'image/gif'], true)) throw new RuntimeException('Bitte ein Bild als JPG, PNG, WebP oder GIF hochladen.');
-    $info = @getimagesize($f['tmp_name']);
+    $info = @getimagesize($tmp);
     if (!$info || $info[0] < 1 || $info[1] < 1 || $info[0] * $info[1] > 40_000_000) throw new RuntimeException('Das Bild ist ungültig oder hat zu viele Pixel.');
 
-    $img = @imagecreatefromstring((string)file_get_contents($f['tmp_name']));
+    $img = @imagecreatefromstring((string)file_get_contents($tmp));
     if (!$img) throw new RuntimeException('Das Bild konnte nicht gelesen werden.');
     if ($mime === 'image/jpeg' && function_exists('exif_read_data')) {
-        $ex = @exif_read_data($f['tmp_name']);
+        $ex = @exif_read_data($tmp);
         $rot = [3 => 180, 6 => -90, 8 => 90][$ex['Orientation'] ?? 0] ?? 0;
         if ($rot) { $r = imagerotate($img, $rot, 0); if ($r) { imagedestroy($img); $img = $r; } }
     }

@@ -165,7 +165,7 @@ function site_foot(): void {
       </ul>
     </div>
   </div>
-  <div class="wrap copy">© <?= date('Y') ?> <?= e($name) ?></div>
+  <div class="wrap copy">© <?= date('Y') ?> <?= e($name) ?><?php if (images_need_credit()): ?> · Produktbilder: <a href="https://world.openfoodfacts.org" target="_blank" rel="noopener">Open Food Facts</a> (<a href="https://creativecommons.org/licenses/by-sa/4.0/deed.de" target="_blank" rel="noopener">CC BY-SA 4.0</a>)<?php endif; ?></div>
 </footer>
 </body>
 </html>
@@ -190,6 +190,7 @@ function admin_head(string $title, string $active): void {
     $nav = [
         'dashboard' => ['index.php', 'Übersicht', '<path d="M3 11l9-8 9 8v10a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/>'],
         'produkte' => ['produkte.php', 'Produkte', '<path d="M21 8l-9-5-9 5v8l9 5 9-5zM3 8l9 5 9-5M12 13v8"/>'],
+        'bilder' => ['bilder.php', 'Produktbilder', '<rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="M21 16l-5-5-8 8"/>'],
         'angebote' => ['angebote.php', 'Angebote', '<path d="M20 12l-8 8-9-9V3h8zM7.5 7.5h.01"/>'],
         'kategorien' => ['kategorien.php', 'Kategorien', '<path d="M4 6h16M4 12h16M4 18h10"/>'],
         'seiten' => ['seiten.php', 'Seiten', '<path d="M6 2h9l5 5v15H6zM14 2v6h6M9 13h8M9 17h8"/>'],

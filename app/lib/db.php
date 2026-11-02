@@ -46,14 +46,27 @@ function migrate(PDO $pdo): void {
         slug TEXT PRIMARY KEY, title TEXT NOT NULL, content TEXT NOT NULL DEFAULT '', updated_at TEXT NOT NULL DEFAULT (datetime('now')));
     CREATE TABLE IF NOT EXISTS login_attempts (ip TEXT NOT NULL, ts INTEGER NOT NULL);
     ");
+    // Spätere Erweiterungen (auch für bestehende Datenbanken)
+    add_column($pdo, 'products', 'barcode', "TEXT NOT NULL DEFAULT ''");
+    add_column($pdo, 'products', 'image_credit', "TEXT NOT NULL DEFAULT ''");
+    add_column($pdo, 'products', 'image_tried', 'TEXT');
+    $pdo->exec('CREATE INDEX IF NOT EXISTS idx_products_barcode ON products(barcode)');
+}
+
+function add_column(PDO $pdo, string $table, string $col, string $def): void {
+    $cols = array_column($pdo->query("PRAGMA table_info($table)")->fetchAll(), 'name');
+    if (!in_array($col, $cols, true)) $pdo->exec("ALTER TABLE $table ADD COLUMN $col $def");
 }
 
 function seed_defaults(PDO $pdo): void {
     $cats = [
-        ['Obst & Gemüse', 'Lebensmittel'], ['Gewürze & Kräuter', 'Lebensmittel'], ['Reis, Bulgur & Getreide', 'Lebensmittel'],
-        ['Linsen & Hülsenfrüchte', 'Lebensmittel'], ['Öle, Oliven & Eingelegtes', 'Lebensmittel'], ['Milchprodukte & Käse', 'Lebensmittel'],
-        ['Fleisch & Wurst (halal)', 'Lebensmittel'], ['Süßwaren & Gebäck', 'Lebensmittel'], ['Tee & Kaffee', 'Lebensmittel'],
-        ['Softdrinks & Säfte', 'Getränke'], ['Ayran, Joghurtdrinks & Wasser', 'Getränke'],
+        ['Reis, Bulgur & Getreide', 'Lebensmittel'], ['Nudeln & Teigwaren', 'Lebensmittel'], ['Linsen & Hülsenfrüchte', 'Lebensmittel'],
+        ['Konserven & Fertiggerichte', 'Lebensmittel'], ['Öle, Fette & Ghee', 'Lebensmittel'], ['Oliven & Eingelegtes', 'Lebensmittel'],
+        ['Tomatenmark & Pasten', 'Lebensmittel'], ['Gewürze & Kräuter', 'Lebensmittel'], ['Milchprodukte & Käse', 'Lebensmittel'],
+        ['Fleisch & Wurst (halal)', 'Lebensmittel'], ['Brot & Backwaren', 'Lebensmittel'], ['Backen & Zutaten', 'Lebensmittel'],
+        ['Marmelade & Desserts', 'Lebensmittel'], ['Süßwaren & Snacks', 'Lebensmittel'], ['Tee & Kaffee', 'Lebensmittel'],
+        ['Obst & Gemüse', 'Lebensmittel'], ['Weitere Lebensmittel', 'Lebensmittel'],
+        ['Softdrinks & Säfte', 'Getränke'], ['Energy Drinks', 'Getränke'], ['Ayran, Joghurtdrinks & Wasser', 'Getränke'],
         ['Küche & Haushalt', 'Haushaltswaren'], ['Tee- & Kaffeezubehör', 'Haushaltswaren'],
         ['Geschenkboxen', 'Geschenkartikel'], ['Dekoration & Mitbringsel', 'Geschenkartikel'],
     ];

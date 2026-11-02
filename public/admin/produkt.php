@@ -5,7 +5,7 @@ require_login();
 $pdo = db();
 
 $id = (int)($_GET['id'] ?? 0);
-$p = ['name' => '', 'name_alt' => '', 'category_id' => (int)($_GET['kat'] ?? 0) ?: null, 'description' => '', 'origin' => '', 'unit' => '', 'price_cents' => null, 'image' => null, 'visible' => 1, 'is_new' => 0, 'in_stock' => 1, 'sort' => 0];
+$p = ['name' => '', 'name_alt' => '', 'category_id' => (int)($_GET['kat'] ?? 0) ?: null, 'description' => '', 'origin' => '', 'unit' => '', 'barcode' => '', 'price_cents' => null, 'image' => null, 'image_credit' => '', 'visible' => 1, 'is_new' => 0, 'in_stock' => 1, 'sort' => 0];
 if ($id) {
     $st = $pdo->prepare('SELECT * FROM products WHERE id = ?'); $st->execute([$id]);
     $p = $st->fetch() ?: null;
@@ -25,6 +25,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         'name' => trim((string)($_POST['name'] ?? '')), 'name_alt' => trim((string)($_POST['name_alt'] ?? '')),
         'category_id' => (int)($_POST['category_id'] ?? 0) ?: null, 'description' => trim((string)($_POST['description'] ?? '')),
         'origin' => trim((string)($_POST['origin'] ?? '')), 'unit' => trim((string)($_POST['unit'] ?? '')),
+        'barcode' => preg_replace('/\s+/', '', (string)($_POST['barcode'] ?? '')),
         'visible' => isset($_POST['visible']) ? 1 : 0, 'is_new' => isset($_POST['is_new']) ? 1 : 0, 'in_stock' => isset($_POST['in_stock']) ? 1 : 0,
         'sort' => (int)($_POST['sort'] ?? 0),
     ];
@@ -32,17 +33,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $price = parse_price($priceIn);
     if ($new['name'] === '') $err[] = 'Bitte einen Namen eingeben.';
     if ($priceIn !== '' && $price === null) $err[] = 'Der Preis ist ungültig (z. B. 2,49).';
-    $image = $p['image'];
+    if ($new['barcode'] !== '' && !preg_match('/^\d{6,20}$/', $new['barcode'])) $err[] = 'Der Barcode darf nur aus Ziffern bestehen.';
+    $image = $p['image']; $credit = $p['image_credit'];
     if (!$err) {
         try {
             $up = handle_image_upload('image', 'products');
-            if ($up) { delete_upload($image); $image = $up; }
-            elseif (!empty($_POST['image_remove'])) { delete_upload($image); $image = null; }
+            if ($up) { delete_upload($image); $image = $up; $credit = ''; }   // eigenes Bild: kein Fremd-Quellenhinweis mehr
+            elseif (!empty($_POST['image_remove'])) { delete_upload($image); $image = null; $credit = ''; }
         } catch (RuntimeException $ex) { $err[] = $ex->getMessage(); }
     }
-    $p = array_merge($p, $new, ['price_cents' => $price, 'image' => $image]);
+    $p = array_merge($p, $new, ['price_cents' => $price, 'image' => $image, 'image_credit' => $credit]);
     if (!$err) {
-        $cols = array_merge($new, ['price_cents' => $price, 'image' => $image]);
+        $cols = array_merge($new, ['price_cents' => $price, 'image' => $image, 'image_credit' => $credit, 'image_tried' => $image ? today() : null]);
         if ($id) {
             $set = implode(', ', array_map(fn($c) => "$c = :$c", array_keys($cols)));
             $pdo->prepare("UPDATE products SET $set, updated_at = datetime('now') WHERE id = :id")->execute(array_merge($cols, ['id' => $id]));
@@ -77,11 +79,12 @@ foreach ($err as $m) echo '<div class="flash err">' . e($m) . '</div>';
         <?= fld('Preis in € (leer = „Preis im Markt“)', 'price', $priceIn, ['inputmode' => 'decimal', 'placeholder' => '2,49']) ?>
         <?= fld('Herkunft', 'origin', $p['origin'], ['placeholder' => 'z. B. Türkei', 'maxlength' => 60]) ?>
       </div>
+      <?= fld('Barcode / EAN (für die automatische Bildsuche)', 'barcode', $p['barcode'], ['inputmode' => 'numeric', 'maxlength' => 20, 'placeholder' => '4260193516047']) ?>
       <?= fld('Beschreibung (optional)', 'description', $p['description'], ['rows' => 5, 'hint' => 'Leere Zeile = neuer Absatz. „- “ am Zeilenanfang = Aufzählung. **fett**']) ?>
     </section>
     <section class="panel">
       <h2>Bild & Sichtbarkeit</h2>
-      <?= image_field('Produktbild', 'image', $p['image'], 'JPG, PNG oder WebP, am besten quadratisch oder 4:3 mit hellem Hintergrund. Wird automatisch verkleinert.') ?>
+      <?= image_field('Produktbild', 'image', $p['image'], 'JPG, PNG oder WebP, am besten quadratisch oder 4:3 mit hellem Hintergrund. Wird automatisch verkleinert.' . ($p['image_credit'] ? ' Dieses Bild stammt automatisch von ' . $p['image_credit'] . ' – ein eigener Upload ersetzt es.' : '')) ?>
       <div class="checks">
         <?= checkbox('Auf der Website sichtbar', 'visible', (bool)$p['visible']) ?>
         <?= checkbox('Als „Neu“ markieren', 'is_new', (bool)$p['is_new']) ?>

@@ -6,9 +6,9 @@ $pdo = db();
 
 /* ---------- Export ---------- */
 if (isset($_GET['export'])) {
-    $rows = $pdo->query('SELECT p.*, c.name AS cat FROM products p LEFT JOIN categories c ON c.id = p.category_id ORDER BY p.name COLLATE NOCASE')->fetchAll();
-    $out = [['Name', 'Name (Arabisch/Türkisch)', 'Kategorie', 'Einheit', 'Preis', 'Herkunft', 'Beschreibung', 'Sichtbar']];
-    foreach ($rows as $r) $out[] = [$r['name'], $r['name_alt'], $r['cat'], $r['unit'], price_input($r['price_cents'] === null ? null : (int)$r['price_cents']), $r['origin'], $r['description'], $r['visible'] ? 'ja' : 'nein'];
+    $rows = $pdo->query('SELECT p.*, c.name AS cat, c.group_name AS grp FROM products p LEFT JOIN categories c ON c.id = p.category_id ORDER BY p.name COLLATE NOCASE')->fetchAll();
+    $out = [['Name', 'Name (Arabisch/Türkisch)', 'Kategorie', 'Einheit', 'Preis', 'Herkunft', 'Beschreibung', 'Sichtbar', 'Barcode', 'Bereich']];
+    foreach ($rows as $r) $out[] = [$r['name'], $r['name_alt'], $r['cat'], $r['unit'], price_input($r['price_cents'] === null ? null : (int)$r['price_cents']), $r['origin'], $r['description'], $r['visible'] ? 'ja' : 'nein', $r['barcode'], $r['grp']];
     header('Content-Type: text/csv; charset=utf-8');
     header('Content-Disposition: attachment; filename="produkte-' . date('Y-m-d') . '.csv"');
     echo "\xEF\xBB\xBF";
@@ -30,36 +30,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } elseif ($act === 'import') {
         if (empty($_FILES['csv']) || $_FILES['csv']['error'] !== UPLOAD_ERR_OK) flash('Bitte eine CSV-Datei auswählen.', 'err');
         else {
-            $raw = (string)file_get_contents($_FILES['csv']['tmp_name']);
-            $raw = preg_replace('/^\xEF\xBB\xBF/', '', $raw);
-            if (!mb_check_encoding($raw, 'UTF-8')) $raw = mb_convert_encoding($raw, 'UTF-8', 'Windows-1252'); // Excel-Standard
-            $lines = preg_split('/\r\n|\n|\r/', trim($raw));
-            $delim = substr_count($lines[0] ?? '', ';') >= substr_count($lines[0] ?? '', ',') ? ';' : ',';
-            $cats = []; foreach ($pdo->query('SELECT id, name FROM categories') as $c) $cats[mb_strtolower($c['name'])] = (int)$c['id'];
-            $add = $upd = $skip = 0;
-            $pdo->beginTransaction();
-            foreach (array_slice($lines, 1) as $line) {
-                if (trim($line) === '') continue;
-                $f = str_getcsv($line, $delim, '"', '');
-                $name = trim($f[0] ?? '');
-                if ($name === '') { $skip++; continue; }
-                $catName = trim($f[2] ?? '');
-                $catId = null;
-                if ($catName !== '') {
-                    $k = mb_strtolower($catName);
-                    if (!isset($cats[$k])) { $pdo->prepare('INSERT INTO categories (name, group_name, sort) VALUES (?, ?, 999)')->execute([$catName, 'Lebensmittel']); $cats[$k] = (int)$pdo->lastInsertId(); }
-                    $catId = $cats[$k];
-                }
-                $unit = trim($f[3] ?? '');
-                $vis = !in_array(mb_strtolower(trim($f[7] ?? 'ja')), ['nein', '0', 'no', 'false'], true) ? 1 : 0;
-                $price = parse_price($f[4] ?? '');
-                $ex = $pdo->prepare('SELECT id FROM products WHERE lower(name) = lower(?) AND lower(unit) = lower(?)'); $ex->execute([$name, $unit]);
-                $eid = $ex->fetchColumn();
-                $vals = [trim($f[1] ?? ''), $catId, $unit, $price, trim($f[5] ?? ''), trim($f[6] ?? ''), $vis];
-                if ($eid) { $pdo->prepare("UPDATE products SET name_alt=?, category_id=?, unit=?, price_cents=?, origin=?, description=?, visible=?, updated_at=datetime('now') WHERE id=?")->execute([...$vals, $eid]); $upd++; }
-                else { $pdo->prepare('INSERT INTO products (name_alt, category_id, unit, price_cents, origin, description, visible, name) VALUES (?,?,?,?,?,?,?,?)')->execute([...$vals, $name]); $add++; }
-            }
-            $pdo->commit();
+            [$add, $upd, $skip] = import_products_csv((string)file_get_contents($_FILES['csv']['tmp_name']));
             flash("Import fertig: $add neu, $upd aktualisiert" . ($skip ? ", $skip Zeilen ohne Namen übersprungen" : '') . '.');
         }
     }
@@ -71,7 +42,7 @@ $q = trim((string)($_GET['q'] ?? ''));
 $kat = (int)($_GET['kat'] ?? 0);
 $filter = $_GET['filter'] ?? '';
 $where = ['1=1']; $args = [];
-if ($q !== '') { $where[] = '(p.name LIKE :q ESCAPE \'\\\' OR p.name_alt LIKE :q ESCAPE \'\\\')'; $args[':q'] = '%' . addcslashes($q, '%_\\') . '%'; }
+if ($q !== '') { $where[] = '(p.name LIKE :q ESCAPE \'\\\' OR p.name_alt LIKE :q ESCAPE \'\\\' OR p.barcode LIKE :q ESCAPE \'\\\')'; $args[':q'] = '%' . addcslashes($q, '%_\\') . '%'; }
 if ($kat) { $where[] = 'p.category_id = :k'; $args[':k'] = $kat; }
 if ($filter === 'ohne-bild') $where[] = "(p.image IS NULL OR p.image = '')";
 if ($filter === 'versteckt') $where[] = 'p.visible = 0';
@@ -93,7 +64,7 @@ admin_head('Produkte', 'produkte');
     <select name="filter"><option value="">Alle</option><option value="ohne-bild"<?= $filter === 'ohne-bild' ? ' selected' : '' ?>>Ohne Bild</option><option value="versteckt"<?= $filter === 'versteckt' ? ' selected' : '' ?>>Versteckt</option></select>
     <button class="btn" type="submit">Filtern</button>
   </form>
-  <a class="btn primary" href="produkt.php">+ Neues Produkt</a>
+  <div class="btn-row"><a class="btn" href="bilder.php">Produktbilder suchen</a><a class="btn primary" href="produkt.php">+ Neues Produkt</a></div>
 </div>
 
 <div class="panel flush">
@@ -126,7 +97,7 @@ admin_head('Produkte', 'produkte');
 
 <details class="panel">
   <summary><b>Excel / CSV: Import & Export</b></summary>
-  <p class="muted">Spalten (Semikolon-getrennt, erste Zeile = Überschrift): <code>Name; Name (Arabisch/Türkisch); Kategorie; Einheit; Preis; Herkunft; Beschreibung; Sichtbar</code>. Vorhandene Produkte (gleicher Name + Einheit) werden aktualisiert, neue Kategorien automatisch angelegt. Bilder werden einzeln am Produkt hochgeladen.</p>
+  <p class="muted">Spalten (Semikolon-getrennt, erste Zeile = Überschrift): <code>Name; Name (Arabisch/Türkisch); Kategorie; Einheit; Preis; Herkunft; Beschreibung; Sichtbar; Barcode; Bereich</code> (die letzten beiden sind optional). Vorhandene Produkte (gleicher Barcode, sonst gleicher Name + Einheit) werden aktualisiert, neue Kategorien automatisch im angegebenen Bereich angelegt. Danach unter <a href="bilder.php">Produktbilder</a> die Bildsuche starten. Bilder werden einzeln am Produkt hochgeladen.</p>
   <form method="post" enctype="multipart/form-data" class="inline-form"><?= csrf_field() ?><input type="hidden" name="action" value="import">
     <input type="file" name="csv" accept=".csv,text/csv" required><button class="btn" type="submit">CSV importieren</button>
     <a class="btn" href="produkte.php?export=1">Alle Produkte als CSV laden</a></form>

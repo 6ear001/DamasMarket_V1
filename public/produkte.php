@@ -5,7 +5,10 @@ $q = trim((string)($_GET['q'] ?? ''));
 $bereich = in_array($_GET['bereich'] ?? '', GROUPS, true) ? $_GET['bereich'] : '';
 $kat = (int)($_GET['kat'] ?? 0);
 $page = (int)($_GET['seite'] ?? 1);
-$allCats = categories();
+$used = array_flip(db()->query('SELECT DISTINCT category_id FROM products WHERE visible = 1 AND category_id IS NOT NULL')->fetchAll(PDO::FETCH_COLUMN));
+$groupsUsed = [];
+foreach (categories() as $c) if (isset($used[$c['id']])) $groupsUsed[$c['group_name']] = true;
+$allCats = array_values(array_filter(categories(), fn($c) => isset($used[$c['id']])));
 $visibleCats = array_values(array_filter($allCats, fn($c) => !$bereich || $c['group_name'] === $bereich));
 
 $where = ['p.visible = 1', '(c.id IS NULL OR c.visible = 1)'];
@@ -44,7 +47,7 @@ site_head('Sortiment', 'produkte', 'Unser Sortiment: arabische und türkische Le
 
   <div class="chips tabs" role="group" aria-label="Bereich">
     <a class="chip<?= !$bereich ? ' on' : '' ?>" href="<?= e(u('produkte.php') . query_with(['bereich' => '', 'kat' => '', 'seite' => ''])) ?>">Alle Bereiche</a>
-    <?php foreach (GROUPS as $g): ?><a class="chip<?= $bereich === $g ? ' on' : '' ?>" href="<?= e(u('produkte.php') . query_with(['bereich' => $g, 'kat' => '', 'seite' => ''])) ?>"><?= e($g) ?></a><?php endforeach; ?>
+    <?php foreach (GROUPS as $g): if (!isset($groupsUsed[$g]) && $bereich !== $g) continue; ?><a class="chip<?= $bereich === $g ? ' on' : '' ?>" href="<?= e(u('produkte.php') . query_with(['bereich' => $g, 'kat' => '', 'seite' => ''])) ?>"><?= e($g) ?></a><?php endforeach; ?>
   </div>
   <?php if ($visibleCats): ?>
   <div class="chips sub" role="group" aria-label="Kategorie">

@@ -27,6 +27,8 @@ require_once APP_DIR . '/lib/helpers.php';
 require_once APP_DIR . '/lib/db.php';
 require_once APP_DIR . '/lib/auth.php';
 require_once APP_DIR . '/lib/upload.php';
+require_once APP_DIR . '/lib/images.php';
+require_once APP_DIR . '/lib/import.php';
 require_once APP_DIR . '/lib/layout.php';
 require_once APP_DIR . '/lib/demo.php';
 
